@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}XelumAI{% endblock %}
+{% block css %}
+<link rel="stylesheet" href="/static/css/home.css">{% endblock %}
+
+{% block content %}
+<div class="top-part">
+    <div class="top-logo">
+        <h1>XelumAI</h1>
+    </div>
+    <div class="top-mid-part">
+        <a href="/tos">TOS</a>
+        <a href="#features">Our Features</a>
+        <a href="#models">Models</a>
+    </div>
+    <div class="top-last">
+        <button class="theme-toggle-inline" id="themeToggle" title="Toggle theme">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+        {% if user.is_authenticated %}
+        <a href="/chat" class="btn btn-primary">Chat</a>
+        <a href="/profile" class="btn btn-secondary">Profile</a>
+        {% else %}
+        <a href="/auth/google" class="btn btn-primary GETSTART">Get Started</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="top-and-main-part">
+    <header>
+        <div class="left-part">
+            <h1>Voice of the technology</h1>
+            <p>Try yourself with newest GPT models for the lowest price on the whole internet</p>
+            {% if user.is_authenticated %}
+            <div class="hero-buttons">
+                <a href="/chat" class="btn btn-primary">Chat</a>
+                <a href="/profile" class="btn btn-secondary">Profile</a>
+            </div>
+            {% else %}
+            <a href="/auth/google" class="btn btn-primary GETSTART">Get Started!</a>
+            {% endif %}
+        </div>
+        <div class="hero-visual">
+            <canvas id="tesseractCanvas"></canvas>
+        </div>
+    </header>
+</div>
+
+<div class="lowest-cont" id="features">
+    <h2 class="features">Our Features</h2>
+    <div class="features-layout">
+
+        <div class="cards">
+            <div class="card">
+                <h3>Affordable Pricing</h3>
+                <p>Access cutting-edge GPT models at the most competitive prices on the market.</p>
+            </div>
+            <div class="card">
+                <h3>Latest Models</h3>
+                <p>Stay ahead with instant access to the newest AI models</p>
+            </div>
+            <div class="card">
+                <h3>Blazing Performance</h3>
+                <p>Enjoy lightning-fast responses with our optimized infrastructure.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="models-part" id="models">
+    <h2 class="modelsh2">Models</h2>
+    <div class="cont-div">
+        <input type="text" id="modelSearch" placeholder="Type name of model...">
+        <div class="no-models-msg" id="noModelsMsg" style="display:none;">There is no model that you are searching
+            for.
+        </div>
+        <div class="cards-models" id="modelsList">
+            <div class="card-model" data-name="grok-3-mini">
+                <h2>Grok-3 Mini</h2>
+                <p>Fast & witty, great for casual tasks</p>
+            </div>
+            <div class="card-model" data-name="gemini-3.1-flash-lite-preview">
+                <h2>Gemini-3.1 Flash</h2>
+                <p>Lightning fast multimodal model</p>
+            </div>
+            <div class="card-model" data-name="gpt-5.3-chat">
+                <h2>GPT-5.3 Chat</h2>
+                <p>Advanced reasoning & long context</p>
+            </div>
+            <div class="card-model" data-name="gpt-5">
+                <h2>GPT-5</h2>
+                <p>Next-gen creativity & reasoning</p>
+            </div>
+            <div class="card-model" data-name="gpt-4.1">
+                <h2>GPT-4.1</h2>
+                <p>Balanced performance & accuracy</p>
+            </div>
+            <div class="card-model" data-name="gpt-4o">
+                <h2>GPT-4o</h2>
+                <p>Smart & versatile all-rounder</p>
+            </div>
+            <div class="card-model" data-name="gpt-4o-mini">
+                <h2>GPT-4o Mini</h2>
+                <p>Fast & cheap everyday helper</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="LOW_MARK">
+    <div class="cont-for-mark">
+        <h1>XELUM</h1>
+        <p>&copy; 2026 Xelum. All rights reserved. <a href="/tos">Terms</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="/static/js/tesseract.js"></script>
+<script src="/static/js/features-visual.js"></script>
+<script src="/static/js/models-waves.js"></script>
+<script>
+    (function () {
+        const searchInput = document.getElementById('modelSearch');
+        const modelsList = document.getElementById('modelsList');
+        if (!searchInput || !modelsList) return;
+
+        const cards = Array.from(modelsList.querySelectorAll('.card-model'));
+        const noMsg = document.getElementById('noModelsMsg');
+
+        function cleanupCard(card) {
+            if (card._exitTimeout) {
+                clearTimeout(card._exitTimeout);
+                card._exitTimeout = null;
+            }
+            card.classList.remove('exiting');
+            card.classList.add('hidden');
+            card.style.position = '';
+            card.style.left = '';
+            card.style.top = '';
+            card.style.width = '';
+            card.style.opacity = '';
+            card.style.transform = '';
+            card.style.transition = '';
+        }
+
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+
+            // 1. Cleanup any cards still exiting from previous search
+            cards.forEach(card => {
+                if (card.classList.contains('exiting')) {
+                    cleanupCard(card);
+                }
+            });
+
+            // 2. Determine matches
+            let visibleCount = 0;
+            cards.forEach(card => {
+                const name = card.dataset.name.toLowerCase();
+                const title = card.querySelector('h2').textContent.toLowerCase();
+                const match = name.includes(query) || title.includes(query);
+                card._willMatch = match;
+                if (match) visibleCount++;
+            });
+            if (noMsg) noMsg.style.display = visibleCount === 0 ? '' : 'none';
+
+            // 3. Capture FIRST positions (before any DOM changes)
+            const firstRects = new Map();
+            const containerRect = modelsList.getBoundingClientRect();
+            cards.forEach(card => {
+                if (!card.classList.contains('hidden')) {
+                    firstRects.set(card, card.getBoundingClientRect());
+                }
+            });
+
+            // 4. Freeze exiting cards in place with position:absolute, fade them out
+            cards.forEach(card => {
+                if (!card._willMatch && !card.classList.contains('hidden')) {
+                    const rect = firstRects.get(card);
+                    card.classList.add('exiting');
+                    card.style.position = 'absolute';
+                    card.style.left = (rect.left - containerRect.left) + 'px';
+                    card.style.top = (rect.top - containerRect.top) + 'px';
+                    card.style.width = rect.width + 'px';
+                    card.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.9)';
+
+                    card._exitTimeout = setTimeout(() => {
+                        cleanupCard(card);
+                    }, 150);
+                }
+            });
+
+            // 5. Show matching cards (remove hidden)
+            cards.forEach(card => {
+                if (card._willMatch) {
+                    card.classList.remove('hidden');
+                }
+            });
+
+            // 6. Capture LAST positions (after grid reflow, excluding exiting)
+            const lastRects = new Map();
+            cards.forEach(card => {
+                if (!card.classList.contains('hidden') && !card.classList.contains('exiting')) {
+                    lastRects.set(card, card.getBoundingClientRect());
+                }
+            });
+
+            // 7. FLIP + fade-in via Web Animations API
+            cards.forEach(card => {
+                const first = firstRects.get(card);
+                const last = lastRects.get(card);
+
+                if (first && last) {
+                    // Card stayed visible — animate position change
+                    const dx = first.left - last.left;
+                    const dy = first.top - last.top;
+                    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                        card.animate([
+                            { transform: 'translate(' + dx + 'px, ' + dy + 'px)' },
+                            { transform: 'translate(0, 0)' }
+                        ], {
+                            duration: 300,
+                            easing: 'ease'
+                        });
+                    }
+                } else if (!first && last) {
+                    // Card appeared — fade in
+                    card.animate([
+                        { opacity: 0, transform: 'scale(0.85)' },
+                        { opacity: 1, transform: 'scale(1)' }
+                    ], {
+                        duration: 300,
+                        easing: 'ease'
+                    });
+                }
+            });
+        });
+    })();
+</script>
+{% endblock %}
